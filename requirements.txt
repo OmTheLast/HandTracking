@@ -1,0 +1,7 @@
+mediapipe
+protobuf<4
+opencv-python
+pyobjc; platform_system == "Darwin"
+pywin32; platform_system == "Windows"
+numpy
+flask

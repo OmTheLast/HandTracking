@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Gesture Controller</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #101114;
+            --panel: #1b1d22;
+            --panel-2: #252832;
+            --text: #f3f5f7;
+            --muted: #a9b0bc;
+            --accent: #21c58e;
+            --accent-2: #47a3ff;
+            --danger: #ff5d5d;
+            --border: #353945;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .app {
+            width: min(1180px, calc(100vw - 32px));
+            margin: 0 auto;
+            padding: 28px 0;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(1.5rem, 3vw, 2.35rem);
+            font-weight: 760;
+        }
+
+        .status-pill {
+            min-width: 112px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--muted);
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .status-pill.active {
+            border-color: rgba(33, 197, 142, 0.5);
+            color: var(--accent);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .preview {
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #050608;
+            aspect-ratio: 16 / 10;
+            position: relative;
+        }
+
+        .preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .empty-feed {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        aside {
+            display: grid;
+            gap: 14px;
+        }
+
+        .panel {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel);
+            padding: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        select,
+        button {
+            width: 100%;
+            min-height: 44px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font: inherit;
+        }
+
+        .button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        select {
+            padding: 0 12px;
+            background: var(--panel-2);
+            color: var(--text);
+        }
+
+        button {
+            margin-top: 12px;
+            cursor: pointer;
+            border-color: transparent;
+            background: var(--accent);
+            color: #06130e;
+            font-weight: 800;
+        }
+
+        .button-row button {
+            margin-top: 0;
+            background: var(--panel-2);
+            color: var(--text);
+            border-color: var(--border);
+            font-size: 0.92rem;
+        }
+
+        button.stop {
+            background: var(--danger);
+            color: #1e0505;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric {
+            min-height: 76px;
+            padding: 12px;
+            border-radius: 8px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+        }
+
+        .metric span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .metric strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 1.15rem;
+        }
+
+        .gesture strong {
+            color: var(--accent-2);
+        }
+
+        @media (max-width: 860px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .status-pill {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <header>
+            <h1>Gesture Control</h1>
+            <div id="statusText" class="status-pill">Inactive</div>
+        </header>
+
+        <section class="layout">
+            <div class="preview">
+                <img id="cameraFeed" alt="Camera feed">
+                <div id="emptyFeed" class="empty-feed">Camera paused</div>
+            </div>
+
+            <aside>
+                <div class="panel">
+                    <label for="cameraSelect">Camera</label>
+                    <select id="cameraSelect">
+                        <option value="0">Loading</option>
+                    </select>
+                    <button id="toggleBtn" type="button" onclick="toggleTracking()">Start Tracking</button>
+                    <div class="button-row">
+                        <button id="targetBtn" type="button" onclick="armTargetCapture()">Set Target</button>
+                        <button type="button" onclick="clearTarget()">Clear</button>
+                    </div>
+                </div>
+
+                <div class="panel metrics">
+                    <div class="metric gesture">
+                        <span>Gesture</span>
+                        <strong id="gestureValue">NONE</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Screen</span>
+                        <strong id="screenValue">--, --</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Camera</span>
+                        <strong id="cameraValue">--, --</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Grab</span>
+                        <strong id="grabValue">Released</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Velocity</span>
+                        <strong id="velocityValue">0</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Target</span>
+                        <strong id="targetValue">None</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Error</span>
+                        <strong id="errorValue">None</strong>
+                    </div>
+                </div>
+            </aside>
+        </section>
+    </main>
+
+    <script>
+        let isRunning = false;
+        let targetTimer = null;
+
+        async function loadCameras() {
+            const response = await fetch('/api/cameras');
+            const data = await response.json();
+            const select = document.getElementById('cameraSelect');
+            select.innerHTML = '';
+
+            if (!data.cameras.length) {
+                const option = document.createElement('option');
+                option.value = '0';
+                option.text = 'Camera 0';
+                select.appendChild(option);
+                return;
+            }
+
+            data.cameras.forEach(camIndex => {
+                const option = document.createElement('option');
+                option.value = camIndex;
+                option.text = `Camera ${camIndex}`;
+                select.appendChild(option);
+            });
+        }
+
+        async function checkStatus() {
+            const response = await fetch('/api/status');
+            const data = await response.json();
+            isRunning = data.is_running;
+            updateUI(data);
+        }
+
+        function formatPair(x, y) {
+            return x === null || y === null ? '--, --' : `${x}, ${y}`;
+        }
+
+        function updateUI(data) {
+            const btn = document.getElementById('toggleBtn');
+            const status = document.getElementById('statusText');
+            const feed = document.getElementById('cameraFeed');
+            const emptyFeed = document.getElementById('emptyFeed');
+
+            if (data.is_running) {
+                btn.textContent = 'Stop Tracking';
+                btn.classList.add('stop');
+                status.textContent = 'Active';
+                status.classList.add('active');
+                emptyFeed.style.display = 'none';
+                if (!feed.src) {
+                    feed.src = `/video_feed?t=${Date.now()}`;
+                }
+            } else {
+                btn.textContent = 'Start Tracking';
+                btn.classList.remove('stop');
+                status.textContent = 'Inactive';
+                status.classList.remove('active');
+                feed.removeAttribute('src');
+                emptyFeed.style.display = 'grid';
+            }
+
+            const gesture = data.gesture || 'NONE';
+            document.getElementById('gestureValue').textContent = gesture;
+            document.getElementById('screenValue').textContent = formatPair(data.screen_x, data.screen_y);
+            document.getElementById('cameraValue').textContent = formatPair(data.camera_x, data.camera_y);
+            document.getElementById('grabValue').textContent = data.grabbed ? 'Holding' : 'Released';
+            document.getElementById('velocityValue').textContent = `${data.speed || 0} / ${data.gain || 1}x`;
+            document.getElementById('targetValue').textContent = data.target || 'None';
+            document.getElementById('errorValue').textContent = data.error || 'None';
+        }
+
+        function setError(message) {
+            document.getElementById('errorValue').textContent = message || 'None';
+        }
+
+        function armTargetCapture() {
+            const btn = document.getElementById('targetBtn');
+            let remaining = 3;
+            btn.disabled = true;
+            btn.textContent = `Focus window ${remaining}`;
+            setError('Switch to the window you want to move');
+
+            clearInterval(targetTimer);
+            targetTimer = setInterval(async () => {
+                remaining -= 1;
+                if (remaining > 0) {
+                    btn.textContent = `Focus window ${remaining}`;
+                    return;
+                }
+
+                clearInterval(targetTimer);
+                targetTimer = null;
+                btn.textContent = 'Set Target';
+                btn.disabled = false;
+
+                const response = await fetch('/api/target', { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok) {
+                    setError(data.message || 'Could not target window');
+                }
+                await checkStatus();
+            }, 1000);
+        }
+
+        async function clearTarget() {
+            await fetch('/api/target', { method: 'DELETE' });
+            await checkStatus();
+        }
+
+        async function toggleTracking() {
+            let response;
+            if (isRunning) {
+                response = await fetch('/api/stop', { method: 'POST' });
+            } else {
+                const camIndex = document.getElementById('cameraSelect').value || '0';
+                response = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ camera_index: camIndex })
+                });
+            }
+            if (!response.ok) {
+                const data = await response.json();
+                setError(data.message || 'Request failed');
+            }
+            await checkStatus();
+        }
+
+        loadCameras();
+        checkStatus();
+        setInterval(checkStatus, 500);
+    </script>
+</body>
+</html>
